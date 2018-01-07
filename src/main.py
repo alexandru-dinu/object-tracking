@@ -19,9 +19,9 @@ def draw_path(frame):
         start = g_path_buffer[i]
         end = g_path_buffer[i+1]
 
-        cv2.line(frame, start, end, utils.g_color, 2)
+        cv2.line(frame, start, end, utils.g_color, utils.g_thickness)
 
-def draw_rectangle(frame, rectangle):
+def draw_rectangle(frame, rectangle, keep_entire_path):
     # draw bounding box
     point1 = (int(rectangle.left()), int(rectangle.top()))
     point2 = (int(rectangle.right()), int(rectangle.bottom()))
@@ -36,14 +36,17 @@ def draw_rectangle(frame, rectangle):
 
     draw_path(frame)
 
-    # max length reached, only add new center at the end
-    if len(g_path_buffer) == g_path_len:
-        g_path_buffer[0:g_path_len-1] = g_path_buffer[1:g_path_len]
-        g_path_buffer[-1] = center
-
-    # accumulate until g_path_len is reached
-    elif len(g_path_buffer) < g_path_len:
+    if keep_entire_path:
         g_path_buffer.append(center)
+    else:
+        # max length reached, only add new center at the end
+        if len(g_path_buffer) == g_path_len:
+            g_path_buffer[0:g_path_len-1] = g_path_buffer[1:g_path_len]
+            g_path_buffer[-1] = center
+
+        # accumulate until g_path_len is reached
+        elif len(g_path_buffer) < g_path_len:
+            g_path_buffer.append(center)
 
 
     cv2.circle(frame, center, 1, utils.g_color, -1)
@@ -60,7 +63,7 @@ def display_coordinates(frame, rectangle):
     cv2.putText(frame, text, position, cv2.FONT_HERSHEY_SIMPLEX, .5, \
             utils.g_color, utils.g_thickness)
 
-def tracking(video_source, tracker, show_coordinates):
+def tracking(video_source, tracker, show_coordinates, keep_entire_path):
     while True:
         ret, frame = video_source.read()
 
@@ -72,7 +75,7 @@ def tracking(video_source, tracker, show_coordinates):
         rectangle = tracker.get_position()
 
         # draw the bounding box
-        draw_rectangle(frame, rectangle)
+        draw_rectangle(frame, rectangle, keep_entire_path)
 
         # display coordinates if needed
         if show_coordinates:
@@ -109,7 +112,7 @@ def await_selection(video_source):
 
 
 
-def main(source, show_coordinates=False):
+def main(source, show_coordinates=False, keep_entire_path=False):
     video_source = cv2.VideoCapture(source)
 
     if not video_source.isOpened():
@@ -137,7 +140,7 @@ def main(source, show_coordinates=False):
     tracker.start_track(frame, dlib.rectangle(*points))
 
     # continuously run the tracking after a selection has been made
-    tracking(video_source, tracker, show_coordinates)
+    tracking(video_source, tracker, show_coordinates, keep_entire_path)
 
     # clean-up
     video_source.release()
@@ -150,6 +153,7 @@ if __name__ == "__main__":
     group.add_argument('-d', "--deviceID", help="Device ID")
     group.add_argument('-v', "--videoFile", help="Path to Video File")
     parser.add_argument('-c', "--showCoord", dest="showCoord", action="store_true")
+    parser.add_argument('-k', "--keepPath", dest="keepPath", action="store_true")
     args = vars(parser.parse_args())
 
     # Get the source of video (file / camera)
@@ -158,4 +162,4 @@ if __name__ == "__main__":
     else:
         source = int(args["deviceID"])
 
-    main(source, args["showCoord"])
+    main(source, args["showCoord"], args["keepPath"])
