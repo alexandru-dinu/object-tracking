@@ -19,7 +19,7 @@ def draw_path(frame):
         start = g_path_buffer[i]
         end = g_path_buffer[i+1]
 
-        cv2.line(frame, start, end, utils.g_color, utils.g_thickness)
+        cv2.line(frame, start, end, utils.g_color, 2)
 
 def draw_rectangle(frame, rectangle, keep_entire_path):
     # draw bounding box
@@ -64,11 +64,24 @@ def display_coordinates(frame, rectangle):
             utils.g_color, utils.g_thickness)
 
 def tracking(video_source, tracker, show_coordinates, keep_entire_path):
+    prev_frame = None
+
     while True:
         ret, frame = video_source.read()
 
         if ret == False:
             exit()
+
+        if prev_frame is not None:
+            diff = np.array(cv2.absdiff(frame, prev_frame))
+            mean = np.mean(diff)
+            print("frame_diff = {}".format(mean))
+
+            # This value should be tweaked
+            if mean > 20:
+                print("Background change")
+
+        prev_frame = frame
 
         # update the tracker and get the bounding box
         tracker.update(frame)
